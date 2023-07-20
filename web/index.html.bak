@@ -6,9 +6,8 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 		<link rel="stylesheet" type="text/css" href="lib/litegraph.css" />
 		<link rel="stylesheet" type="text/css" href="style.css" />
-    <link rel="stylesheet" type="text/css" href="style_new.css" />
 		<script type="text/javascript" src="lib/litegraph.core.js"></script>
-    <script type="module" src="scripts/auth.js"></script>
+		<script type="text/javascript" src="lib/litegraph.extensions.js" defer></script>
 		<script type="module">
 			import { app } from "/scripts/app.js";
 			await app.setup();
@@ -16,5 +15,5 @@
 			window.graph = app.graph;
 		</script>
 	</head>
-	<body></body>
+	<body class="litegraph"></body>
 </html>
