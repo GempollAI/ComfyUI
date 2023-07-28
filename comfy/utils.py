@@ -4,18 +4,20 @@ import struct
 import comfy.checkpoint_pickle
 import safetensors.torch
 
-def load_torch_file(ckpt, safe_load=False):
+def load_torch_file(ckpt, safe_load=False, device=None):
+    if device is None:
+        device = torch.device("cpu")
     if ckpt.lower().endswith(".safetensors"):
-        sd = safetensors.torch.load_file(ckpt, device="cpu")
+        sd = safetensors.torch.load_file(ckpt, device=device.type)
     else:
         if safe_load:
             if not 'weights_only' in torch.load.__code__.co_varnames:
                 print("Warning torch.load doesn't support weights_only on this pytorch version, loading unsafely.")
                 safe_load = False
         if safe_load:
-            pl_sd = torch.load(ckpt, map_location="cpu", weights_only=True)
+            pl_sd = torch.load(ckpt, map_location=device, weights_only=True)
         else:
-            pl_sd = torch.load(ckpt, map_location="cpu", pickle_module=comfy.checkpoint_pickle)
+            pl_sd = torch.load(ckpt, map_location=device, pickle_module=comfy.checkpoint_pickle)
         if "global_step" in pl_sd:
             print(f"Global Step: {pl_sd['global_step']}")
         if "state_dict" in pl_sd:
@@ -117,14 +119,37 @@ UNET_MAP_RESNET = {
     "out_layers.0.bias": "norm2.bias",
 }
 
+UNET_MAP_BASIC = {
+    ("label_emb.0.0.weight", "class_embedding.linear_1.weight"),
+    ("label_emb.0.0.bias", "class_embedding.linear_1.bias"),
+    ("label_emb.0.2.weight", "class_embedding.linear_2.weight"),
+    ("label_emb.0.2.bias", "class_embedding.linear_2.bias"),
+    ("label_emb.0.0.weight", "add_embedding.linear_1.weight"),
+    ("label_emb.0.0.bias", "add_embedding.linear_1.bias"),
+    ("label_emb.0.2.weight", "add_embedding.linear_2.weight"),
+    ("label_emb.0.2.bias", "add_embedding.linear_2.bias"),
+    ("input_blocks.0.0.weight", "conv_in.weight"),
+    ("input_blocks.0.0.bias", "conv_in.bias"),
+    ("out.0.weight", "conv_norm_out.weight"),
+    ("out.0.bias", "conv_norm_out.bias"),
+    ("out.2.weight", "conv_out.weight"),
+    ("out.2.bias", "conv_out.bias"),
+    ("time_embed.0.weight", "time_embedding.linear_1.weight"),
+    ("time_embed.0.bias", "time_embedding.linear_1.bias"),
+    ("time_embed.2.weight", "time_embedding.linear_2.weight"),
+    ("time_embed.2.bias", "time_embedding.linear_2.bias")
+}
+
 def unet_to_diffusers(unet_config):
     num_res_blocks = unet_config["num_res_blocks"]
     attention_resolutions = unet_config["attention_resolutions"]
     channel_mult = unet_config["channel_mult"]
     transformer_depth = unet_config["transformer_depth"]
     num_blocks = len(channel_mult)
-    if not isinstance(num_res_blocks, list):
+    if isinstance(num_res_blocks, int):
         num_res_blocks = [num_res_blocks] * num_blocks
+    if isinstance(transformer_depth, int):
+        transformer_depth = [transformer_depth] * num_blocks
 
     transformers_per_layer = []
     res = 1
@@ -135,7 +160,7 @@ def unet_to_diffusers(unet_config):
         transformers_per_layer.append(transformers)
         res *= 2
 
-    transformers_mid = unet_config.get("transformer_depth_middle", transformers_per_layer[-1])
+    transformers_mid = unet_config.get("transformer_depth_middle", transformer_depth[-1])
 
     diffusers_unet_map = {}
     for x in range(num_blocks):
@@ -185,6 +210,10 @@ def unet_to_diffusers(unet_config):
                 for k in ["weight", "bias"]:
                     diffusers_unet_map["up_blocks.{}.upsamplers.0.conv.{}".format(x, k)] = "output_blocks.{}.{}.conv.{}".format(n, c, k)
             n += 1
+
+    for k in UNET_MAP_BASIC:
+        diffusers_unet_map[k[1]] = k[0]
+
     return diffusers_unet_map
 
 def convert_sd_to(state_dict, dtype):
