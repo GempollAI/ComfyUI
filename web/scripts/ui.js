@@ -718,7 +718,7 @@ export class ComfyUI {
 						app.graph.clear();
 					}
 				}
-			}}),
+			}),
 			$el("button", { textContent: "加载默认", onclick: () => {
         app.loadGraphData()
         this.extra_ui.resetTemplateSelect()
