@@ -706,6 +706,34 @@ export class ComfyUI {
 					}, 0);
 				},
 			}),
+      $el("button", {
+				id: "comfy-save-button",
+				textContent: "下载",
+				onclick: () => {
+					const json = JSON.stringify(app.graph.serialize(), null, 2); // convert the data to a JSON string
+          let filename = "workflow.json";
+					if (promptFilename.value) {
+						filename = prompt("Save workflow as:", filename);
+						if (!filename) return;
+						if (!filename.toLowerCase().endsWith(".json")) {
+							filename += ".json";
+						}
+					}
+					const blob = new Blob([json], { type: "application/json" });
+					const url = URL.createObjectURL(blob);
+					const a = $el("a", {
+						href: url,
+						download: filename,
+						style: {display: "none"},
+						parent: document.body,
+					});
+					a.click();
+					setTimeout(function () {
+						a.remove();
+						window.URL.revokeObjectURL(url);
+					}, 0);
+				},
+			}),
 			$el("button", {
 				id: "comfy-dev-save-api-button",
 				textContent: "Save (API Format)",
