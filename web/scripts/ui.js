@@ -429,10 +429,12 @@ class ComfySettingsDialog extends ComfyDialog {
 class ComfyList {
 	#type;
 	#text;
+	#reverse;
 
-	constructor(text, type) {
+	constructor(text, type, reverse) {
 		this.#text = text;
 		this.#type = type || text.toLowerCase();
+		this.#reverse = reverse || false;
 		this.element = $el("div.comfy-list");
 		this.element.style.display = "none";
 	}
@@ -449,7 +451,7 @@ class ComfyList {
 					textContent: section,
 				}),
 				$el("div.comfy-list-items", [
-					...items[section].map((item) => {
+					...(this.#reverse ? items[section].reverse() : items[section]).map((item) => {
 						// Allow items to specify a custom remove action (e.g. for interrupt current prompt)
 						const removeAction = item.remove || {
 							name: "Delete",
@@ -527,8 +529,8 @@ export class ComfyUI {
 		this.batchCount = 1;
 		this.lastQueueSize = 0;
 		this.queue = new ComfyList("Queue");
-		this.history = new ComfyList("History");
-    	this.extra_ui = new ExtraUI();
+		this.history = new ComfyList("History", "history", true);
+    this.extra_ui = new ExtraUI();
 
 		api.addEventListener("status", () => {
 			this.queue.update();
@@ -638,14 +640,23 @@ export class ComfyUI {
 							this.batchCount = i.srcElement.value;
 							document.getElementById("batchCountInputNumber").value = i.srcElement.value;
 						},
+					}),		
+				]),
+
+				$el("div",[
+					$el("label",{
+						for:"autoQueueCheckbox",
+						innerHTML: "Auto Queue"
+						// textContent: "Auto Queue"
 					}),
 					$el("input", {
 						id: "autoQueueCheckbox",
 						type: "checkbox",
 						checked: false,
-						title: "automatically queue prompt when the queue size hits 0",
+						title: "Automatically queue prompt when the queue size hits 0",
+						
 					}),
-				]),
+				])
 			]),
 			$el("div.comfy-menu-btns", [
 				$el("button", {

@@ -143,7 +143,7 @@ class ControlNet(ControlBase):
                 if control_prev is not None:
                     return control_prev
                 else:
-                    return {}
+                    return None
 
         output_dtype = x_noisy.dtype
         if self.cond_hint is None or x_noisy.shape[2] * 8 != self.cond_hint.shape[2] or x_noisy.shape[3] * 8 != self.cond_hint.shape[3]:
@@ -449,10 +449,18 @@ class T2IAdapter(ControlBase):
         return c
 
 def load_t2i_adapter(t2i_data):
-    keys = t2i_data.keys()
-    if 'adapter' in keys:
+    if 'adapter' in t2i_data:
         t2i_data = t2i_data['adapter']
-        keys = t2i_data.keys()
+    if 'adapter.body.0.resnets.0.block1.weight' in t2i_data: #diffusers format
+        prefix_replace = {}
+        for i in range(4):
+            for j in range(2):
+                prefix_replace["adapter.body.{}.resnets.{}.".format(i, j)] = "body.{}.".format(i * 2 + j)
+            prefix_replace["adapter.body.{}.".format(i, j)] = "body.{}.".format(i * 2)
+        prefix_replace["adapter."] = ""
+        t2i_data = comfy.utils.state_dict_prefix_replace(t2i_data, prefix_replace)
+    keys = t2i_data.keys()
+
     if "body.0.in_conv.weight" in keys:
         cin = t2i_data['body.0.in_conv.weight'].shape[1]
         model_ad = comfy.t2i_adapter.adapter.Adapter_light(cin=cin, channels=[320, 640, 1280, 1280], nums_rb=4)
