@@ -2,7 +2,7 @@
 
 # Default values
 CUDA_DEVICE=""
-EXPECTED_PYTHON_PATH="/home/ai/mambaforge/envs/aigc/bin/python"
+EXPECTED_PYTHON_PATH="/home/ai/mambaforge/envs/comfyui/bin/python"
 
 # Parse command-line options
 while [[ $# -gt 0 ]]; do
@@ -25,7 +25,7 @@ if [ -z "$CUDA_DEVICE" ] ; then
 fi
 
 
-source /home/ai/mambaforge/bin/activate aigc
+source /home/ai/mambaforge/bin/activate comfyui
 
 # Check python path
 current_python_path=$(which python)
@@ -39,6 +39,6 @@ export http_proxy="http://localhost:9910" https_proxy="http://localhost:9910" HT
 echo "Using proxy ${http_proxy}"
 
 # Set TensorRT
-export LD_LIBRARY_PATH="/home/ai/mambaforge/envs/aigc/lib/python3.10/site-packages/tensorrt_libs:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/home/ai/mambaforge/envs/comfyui/lib/python3.10/site-packages/tensorrt_libs:$LD_LIBRARY_PATH"
 
 python main.py --listen --port 8188 --cuda-device "$CUDA_DEVICE"
