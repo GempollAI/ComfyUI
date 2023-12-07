@@ -19,6 +19,10 @@ export function $el(tag, propsOrChildren, children) {
 			delete propsOrChildren.dataset;
 			delete propsOrChildren.style;
 
+			if (Object.hasOwn(propsOrChildren, "for")) {
+				element.setAttribute("for", propsOrChildren.for)
+			}
+
 			if (style) {
 				Object.assign(element.style, style);
 			}
@@ -460,8 +464,8 @@ class ComfyList {
 						return $el("div", {textContent: item.prompt[0] + ": "}, [
 							$el("button", {
 								textContent: "Load",
-								onclick: () => {
-									app.loadGraphData(item.prompt[3].extra_pnginfo.workflow);
+								onclick: async () => {
+									await app.loadGraphData(item.prompt[3].extra_pnginfo.workflow);
 									if (item.outputs) {
 										app.nodeOutputs = item.outputs;
 									}
@@ -598,7 +602,7 @@ export class ComfyUI {
 		const fileInput = $el("input", {
 			id: "comfy-file-input",
 			type: "file",
-			accept: ".json,image/png,.latent,.safetensors",
+			accept: ".json,image/png,.latent,.safetensors,image/webp",
 			style: {display: "none"},
 			parent: document.body,
 			onchange: () => {
@@ -835,7 +839,8 @@ export class ComfyUI {
 			if (
 				this.lastQueueSize != 0 &&
 				status.exec_info.queue_remaining == 0 &&
-				document.getElementById("autoQueueCheckbox").checked
+				document.getElementById("autoQueueCheckbox").checked &&
+				! app.lastExecutionError
 			) {
 				app.queuePrompt(0, this.batchCount);
 			}
