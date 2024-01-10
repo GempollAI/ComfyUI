@@ -1415,6 +1415,8 @@ class LoadImage:
         output_masks = []
         for i in ImageSequence.Iterator(img):
             i = ImageOps.exif_transpose(i)
+            if i.mode == 'I':
+                i = i.point(lambda i: i * (1 / 255))
             image = i.convert("RGB")
             image = np.array(image).astype(np.float32) / 255.0
             image = torch.from_numpy(image)[None,]
@@ -1470,6 +1472,8 @@ class LoadImageMask:
         i = Image.open(image_path)
         i = ImageOps.exif_transpose(i)
         if i.getbands() != ("R", "G", "B", "A"):
+            if i.mode == 'I':
+                i = i.point(lambda i: i * (1 / 255))
             i = i.convert("RGBA")
         mask = None
         c = channel[0].upper()
@@ -1491,12 +1495,9 @@ class LoadImageMask:
         return m.digest().hex()
 
     @classmethod
-    def VALIDATE_INPUTS(s, image, channel):
+    def VALIDATE_INPUTS(s, image):
         if not folder_paths.exists_annotated_filepath(image):
             return "Invalid image file: {}".format(image)
-
-        if channel not in s._color_channels:
-            return "Invalid color channel: {}".format(channel)
 
         return True
 
@@ -1883,6 +1884,7 @@ def init_custom_nodes():
         "nodes_sag.py",
         "nodes_perpneg.py",
         "nodes_stable3d.py",
+        "nodes_sdupscale.py",
     ]
 
     for node_file in extras_files:
