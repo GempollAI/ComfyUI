@@ -4,6 +4,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
+import logging
 
 from .util import (
     checkpoint,
@@ -257,7 +258,7 @@ class ResBlock(TimestepBlock):
         else:
             if emb_out is not None:
                 if self.exchange_temb_dims:
-                    emb_out = rearrange(emb_out, "b t c ... -> b c t ...")
+                    emb_out = emb_out.movedim(1, 2)
                 h = h + emb_out
             h = self.out_layers(h)
         return self.skip_connection(x) + h
@@ -359,7 +360,7 @@ def apply_control(h, control, name):
             try:
                 h += ctrl
             except:
-                print("warning control could not be applied", h.shape, ctrl.shape)
+                logging.warning("warning control could not be applied {} {}".format(h.shape, ctrl.shape))
     return h
 
 class UNetModel(nn.Module):
@@ -430,6 +431,7 @@ class UNetModel(nn.Module):
         video_kernel_size=None,
         disable_temporal_crossattention=False,
         max_ddpm_temb_period=10000,
+        attn_precision=None,
         device=None,
         operations=ops,
     ):
@@ -496,7 +498,7 @@ class UNetModel(nn.Module):
             if isinstance(self.num_classes, int):
                 self.label_emb = nn.Embedding(num_classes, time_embed_dim, dtype=self.dtype, device=device)
             elif self.num_classes == "continuous":
-                print("setting up linear c_adm embedding layer")
+                logging.debug("setting up linear c_adm embedding layer")
                 self.label_emb = nn.Linear(1, time_embed_dim)
             elif self.num_classes == "sequential":
                 assert adm_in_channels is not None
@@ -549,13 +551,14 @@ class UNetModel(nn.Module):
                     disable_self_attn=disable_self_attn,
                     disable_temporal_crossattention=disable_temporal_crossattention,
                     max_time_embed_period=max_ddpm_temb_period,
+                    attn_precision=attn_precision,
                     dtype=self.dtype, device=device, operations=operations
                 )
             else:
                 return SpatialTransformer(
                                 ch, num_heads, dim_head, depth=depth, context_dim=context_dim,
                                 disable_self_attn=disable_self_attn, use_linear=use_linear_in_transformer,
-                                use_checkpoint=use_checkpoint, dtype=self.dtype, device=device, operations=operations
+                                use_checkpoint=use_checkpoint, attn_precision=attn_precision, dtype=self.dtype, device=device, operations=operations
                             )
 
         def get_resblock(
@@ -806,7 +809,7 @@ class UNetModel(nn.Module):
         self.out = nn.Sequential(
             operations.GroupNorm(32, ch, dtype=self.dtype, device=device),
             nn.SiLU(),
-            zero_module(operations.conv_nd(dims, model_channels, out_channels, 3, padding=1, dtype=self.dtype, device=device)),
+            operations.conv_nd(dims, model_channels, out_channels, 3, padding=1, dtype=self.dtype, device=device),
         )
         if self.predict_codebook_ids:
             self.id_predictor = nn.Sequential(
